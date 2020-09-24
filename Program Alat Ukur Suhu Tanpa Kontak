@@ -1,0 +1,115 @@
+// ------ MLX
+#include <Wire.h>
+#include <Adafruit_MLX90614.h>
+
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+float stemp = 0;
+int readcount;
+float threshold = 3.9;
+float objectTemp;
+
+// --------- Ultrasonic Sensor preparation
+#define trigPin 10 // Trigger Pin
+#define echoPin 12 // Echo Pin
+
+float duration, distance;
+
+//LCD
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27,16,2);  // Kalau gagal ganti 0x3F ke 0x27 for a 16 chars and 2 line display
+
+void setup() {
+  //Ultrasonic
+  Serial.begin(9600);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  //MLX
+  Serial.println("Adafruit MLX90614 test");  
+  mlx.begin(); 
+  //LCD
+  lcd.init(); // initialize the lcd 
+}
+
+void loop()
+
+{
+ //MLX
+ objectTemp = threshold + mlx.readObjectTempC() ; 
+
+ //Ultrasonic
+ digitalWrite(trigPin, LOW);
+ delayMicroseconds(2);
+ digitalWrite(trigPin, HIGH);
+ delayMicroseconds(10);
+ digitalWrite(trigPin, LOW);
+
+ duration = pulseIn(echoPin,HIGH);
+ distance = (duration / 2) * 0.0343;
+ Serial.print(duration);
+ Serial.print("\t");
+ Serial.print(distance);
+ lcd.backlight();
+ lcd.setCursor(0,0);
+ lcd.print("Suhu Anda");
+ if(distance >= 10 && distance <= 15){
+  Serial.println("\tBertahan!");
+  lcd.setCursor(0,1);
+  lcd.print("Bertahan!");
+  disptemp();
+ }else if(distance < 10){
+  Serial.println("\tMenjauh!");
+  lcd.setCursor(0,1);
+  lcd.print("Menjauh!");
+  readcount = 0;
+ }else{
+  Serial.println("\tMendekat!");
+  lcd.setCursor(0,1);
+  lcd.print("Mendekat!");
+  readcount = 0;
+ }
+ delay(1000);
+}
+
+void disptemp()
+{
+      Serial.print("\tSuhu Ruangan = "); Serial.print(mlx.readAmbientTempC()); 
+      Serial.print("*C\tSuhu Tubuh = "); Serial.print(objectTemp); Serial.print("*C");
+      lcd.setCursor(10,0);
+      lcd.print(objectTemp);
+      lcd.setCursor(14,0);
+      lcd.print("*C");
+      if (objectTemp >= 37.3) {
+        Serial.print("\tNot OK");
+        play_alert();
+        lcd.setCursor(0,1);
+        lcd.print("Silakan PULANG!");
+      } else {
+        Serial.print("\tOK");
+        play_ok();
+        lcd.setCursor(0,1);
+        lcd.print("Silakan MASUK!");
+      }
+      Serial.println();
+      delay(1000);
+      lcd.clear();
+}
+
+void play_ok() {  // play three sequential notes when object temperature is below 37.3C
+  tone(3, 600, 1000);  // pin,frequency,duration
+  delay(200);
+  tone(3, 750, 500);
+  delay(100);
+  tone(3, 1000, 500);
+  delay(200);
+  noTone(3);
+}
+
+void play_alert() { // beep 3x when object temperature is >= 37.3C
+  tone(3, 2000, 1000);
+  delay(1000);
+  tone(3, 3000, 1000);
+  delay(1000);
+  tone(3, 4000, 1000);
+  delay(1000);
+  noTone(3);
+}
